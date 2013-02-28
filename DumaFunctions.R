@@ -11,6 +11,8 @@ require(XML)
 require(plyr)
 require(ggplot2)
 
+
+
 #Функция возвращает ссылки на ссылки голосований по законопроекту, которые имеет значение number 
 # number - номер законопроекта в vote.duma.gov.ru
 #links - вектор ссылок на голосований по данному законопроекту 
@@ -182,3 +184,24 @@ GetZakonByUrl <- function(url){
   z.total$number <- as.character(z.total$number)
   return(z.total)  #функция возвращает в ответ полный датафрейм с 4 столбцами
 }
+
+# Рисует результат голосования в трех чтениях по номеру законопроекта в системе АСОЗД
+GraphResultByNumber <- function(number){
+  vv <- GetVotesByNumberChtenie(number) # получить вектор из трех элементов с ссылками на голосования (по трем чтениям)
+  nm <- c('id', 'result', 'party', 'chtenie')
+  v.total <- as.data.frame(matrix(nrow =0, ncol = 4, dimnames = list(NULL, nm)))
+  for (i in 1:length(vv)){
+    res <- GetVoteResult(vv[i])
+    res$chtenie <- as.factor(i)
+    v.total <- rbind(v.total, res)
+  }
+  v.total$chtenie <- revalue(v.total$chtenie, c("1"="первое", "2"="второе", '3' = 'третье'))
+  v.title <- '' #название законопроекта
+  ll <- as.data.frame(table(v.total$chtenie, v.total$party, v.total$result))
+  colnames(ll) <- c("chtenie",'party', 'result', 'count')
+  p <- ggplot(data = v.total, aes(factor(party), fill = party))
+  p<- p+geom_bar()+facet_grid(result ~ chtenie)+labs( x = '', y ='количество голосов', title = v.title)
+  p<- p+ scale_fill_manual(name = '', values = c('ЕР' = '#4d6b8d', 'КПРФ' = '#bf0d0d', 'ЛДПР' = '#fad000', 'СР' = '#e6871d' ))+ief.theme+theme(legend.position="bottom")+
+    geom_text(data = ll, aes(x = party, y = count, label = count), vjust = -0.1, size = 4)
+}
+
